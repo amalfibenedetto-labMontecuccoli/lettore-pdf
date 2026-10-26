@@ -637,7 +637,20 @@ fn interpret_window<'a>(
             TypedInstruction::ClipEvenOdd(_) => {
                 *(context.clip_mut()) = Some(FillRule::EvenOdd);
             }
-            TypedInstruction::RestoreState(_) => context.restore_state(device),
+            TypedInstruction::RestoreState(_) => {
+                // PdfCraft patch (67): the text and text line matrices are not part of the
+                // graphics state (ISO 32000-2 §8.4.1 Table 51, §9.4.1), so a `Q` inside a text
+                // object keeps the pen where the text before it left it. Outside one, the next
+                // `BT` resets both. Forms and annotations run between a save and restore of their
+                // own, and Type 3 glyphs, patterns and soft masks in a context of their own, so a
+                // stream's pen does not reach its caller unless the stream pops past its own
+                // saves, which already hands the caller a wrong state.
+                let text = &context.get().text_state;
+                let pen = (text.text_matrix, text.text_line_matrix);
+                context.restore_state(device);
+                let text = &mut context.get_mut().text_state;
+                (text.text_matrix, text.text_line_matrix) = pen;
+            }
             TypedInstruction::FlatnessTolerance(_) => {
                 // Ignore for now.
             }
