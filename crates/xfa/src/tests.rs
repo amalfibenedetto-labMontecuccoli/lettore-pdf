@@ -1825,6 +1825,9 @@ fn a_bmp_whose_pixel_offset_points_into_its_headers_is_read_from_after_them() {
     fields[10..14].copy_from_slice(&0u32.to_le_bytes());
     fields.splice(54..54, [0u8; 12]);
     assert_eq!(bmp_with_pixel_offset(&fields).get(10..14), Some(&66u32.to_le_bytes()[..]));
+    // Pointing at the end of the 40-byte header, before the masks.
+    fields[10..14].copy_from_slice(&54u32.to_le_bytes());
+    assert_eq!(bmp_with_pixel_offset(&fields).get(10..14), Some(&66u32.to_le_bytes()[..]));
     // A colour count no file could hold: left alone.
     let mut huge = tiny_bmp(true);
     huge[46..50].copy_from_slice(&u32::MAX.to_le_bytes());
@@ -1840,6 +1843,9 @@ fn a_bmp_whose_pixel_offset_points_into_its_headers_is_read_from_after_them() {
     }
     core.extend_from_slice(&[0, 0, 255, 255, 0, 0, 0b0100_0000, 0, 0, 0]);
     assert_eq!(bmp_with_pixel_offset(&core).get(10..14), Some(&32u32.to_le_bytes()[..]));
+    let mut at_table = core.clone();
+    at_table[10..14].copy_from_slice(&26u32.to_le_bytes());
+    assert_eq!(bmp_with_pixel_offset(&at_table).get(10..14), Some(&32u32.to_le_bytes()[..]), "before the colour table");
     let d = decode(&bmp_with_pixel_offset(&core)).unwrap();
     assert_eq!(d.samples, vec![255, 0, 0, 0, 0, 255], "core header");
 }

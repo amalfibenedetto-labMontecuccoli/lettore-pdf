@@ -42,7 +42,7 @@ fn is_bmp(data: &[u8]) -> bool {
 }
 
 /// `data` with a BMP's pixel-data offset (`bfOffBits`) corrected when it points into the file or
-/// info header, as some writers leave it at 0: the rows then start after the headers, the colour
+/// info header or at its end with masks or a colour table still to come, as some writers leave it at 0: the rows then start after the headers, the colour
 /// masks and the colour table. The `image` decoder seeks to the declared offset unchecked, so
 /// such a picture would be read from the wrong place, shifted and wrapped. Anything else,
 /// including a header too short to measure, is returned as it is.
@@ -68,7 +68,8 @@ fn bmp_pixel_offset_repair(data: &[u8]) -> Option<u32> {
     }
     let (declared, info_size) = (le32(10)?, le32(14)?);
     let headers_end = info_size.checked_add(14)?;
-    if declared >= headers_end {
+    // At the end of the headers is right only when no masks or colour table follow.
+    if declared > headers_end {
         return None;
     }
     let (bpp, masks, used, entry) = if info_size == 12 {
@@ -93,7 +94,7 @@ fn bmp_pixel_offset_repair(data: &[u8]) -> Option<u32> {
         (n, _) => n,
     };
     let offset = entries.checked_mul(entry)?.checked_add(masks)?.checked_add(headers_end)?;
-    (usize::try_from(offset).ok()? <= data.len()).then_some(offset)
+    (offset != declared && usize::try_from(offset).ok()? <= data.len()).then_some(offset)
 }
 
 /// The pixel size, from the header alone; `None` when it can't be read or the image is bigger
