@@ -25,6 +25,9 @@ fn main() {
                 canvas,
                 options,
                 Box::new(|cc| {
+                    if let Some(loading) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.get_element_by_id("pdfcraft_loading")) {
+                        loading.remove();
+                    }
                     let mut app = PdfCraftApp::new();
                     // "printcraft": settings saved under the app's former name, PrintCraft.
                     if let Some(json) = cc.storage.and_then(|s| s.get_string("pdfcraft").or_else(|| s.get_string("printcraft"))) {
@@ -81,6 +84,9 @@ fn main() {
                     // Outside a host page: sign in with Google, save to and open from the user's Drive.
                     if query_param("host").as_deref() != Some("parent") && !drive::disabled() {
                         drive::remember_context(&cc.egui_ctx);
+                        // Google's script is loaded now, so the sign-in popup opens straight from the
+                        // tap: a phone's browser blocks a popup that comes after a wait.
+                        drive::preload();
                         app.host_save = Some(Box::new(|name: &str, bytes: &[u8], _save_as: bool| drive::deliver(name, bytes)));
                         app.extra_bar = Some(Box::new(drive_bar(app.inbox.clone())));
                         app.school_about = Some(pdfcraft_ui_egui::SchoolAbout {
@@ -112,11 +118,11 @@ fn main() {
 
 /// The strip above the tabs: sign in, open from Drive (saving goes to Drive by itself).
 #[cfg(target_arch = "wasm32")]
-fn drive_bar(inbox: pdfcraft_ui_egui::Inbox) -> impl FnMut(&mut egui::Ui) {
+fn drive_bar(inbox: pdfcraft_ui_egui::Inbox) -> impl FnMut(&mut egui::Ui, &mut pdfcraft_ui_egui::PdfCraftApp) {
     let mut files: Vec<drive::Entry> = Vec::new();
     let mut listing_open = false;
     let mut message = String::new();
-    move |ui: &mut egui::Ui| {
+    move |ui: &mut egui::Ui, app: &mut pdfcraft_ui_egui::PdfCraftApp| {
         if let Some(note) = drive::take_notice() {
             message = note;
         }
@@ -136,24 +142,26 @@ fn drive_bar(inbox: pdfcraft_ui_egui::Inbox) -> impl FnMut(&mut egui::Ui) {
         match drive::account() {
             Some(name) => {
                 ui.label(name);
-                if ui.button("Apri da Drive").clicked() {
+                if ui.add(egui::Button::new("Apri da Drive").min_size(egui::vec2(0.0, 32.0))).clicked() {
                     drive::list();
                 }
-                if ui.button("Esci").clicked() {
+                if ui.add(egui::Button::new("Esci").min_size(egui::vec2(0.0, 32.0))).clicked() {
                     drive::sign_out();
                     listing_open = false;
                 }
             }
             None => {
-                if ui.button("Accedi con Google").clicked() {
+                if ui.add(egui::Button::new("Accedi con Google").min_size(egui::vec2(0.0, 32.0))).clicked() {
                     drive::sign_in();
                 }
-                if ui.button("Apri da Drive").clicked() {
+                if ui.add(egui::Button::new("Apri da Drive").min_size(egui::vec2(0.0, 32.0))).clicked() {
                     drive::list();
                 }
             }
         }
-        ui.label("Salva (Ctrl+S) salva su Drive");
+        if ui.add(egui::Button::new("Salva su Drive").min_size(egui::vec2(0.0, 32.0))).clicked() {
+            app.execute("file.save");
+        }
         if !message.is_empty() {
             ui.add(egui::Label::new(message.as_str()).truncate());
         }
@@ -182,28 +190,30 @@ fn drive_bar(inbox: pdfcraft_ui_egui::Inbox) -> impl FnMut(&mut egui::Ui) {
 #[cfg(target_arch = "wasm32")]
 fn sign_in_gate(ctx: &egui::Context, message: &str) {
     let screen = ctx.content_rect();
+    // A phone held upright is narrow: smaller type and a card that fits it.
+    let k = if screen.width() < 560.0 { 0.62 } else { 1.0 };
     let visuals = ctx.global_style().visuals.clone();
     egui::Area::new(egui::Id::new("sign_in_gate")).order(egui::Order::Foreground).fixed_pos(screen.min).show(ctx, |ui| {
         ui.allocate_rect(screen, egui::Sense::click_and_drag());
         ui.painter().rect_filled(screen, 0.0, egui::Color32::from_black_alpha(225));
-        let card = egui::Rect::from_center_size(screen.center(), egui::vec2((screen.width() - 40.0).clamp(280.0, 620.0), 400.0));
+        let card = egui::Rect::from_center_size(screen.center(), egui::vec2((screen.width() - 24.0).clamp(240.0, 620.0), (400.0 * k).max(300.0).min(screen.height() - 24.0)));
         ui.painter().rect_filled(card, 14.0, visuals.panel_fill);
         ui.painter().rect_stroke(card, 14.0, egui::Stroke::new(1.5, visuals.widgets.noninteractive.bg_stroke.color), egui::StrokeKind::Inside);
-        ui.scope_builder(egui::UiBuilder::new().max_rect(card.shrink(30.0)), |ui| {
+        ui.scope_builder(egui::UiBuilder::new().max_rect(card.shrink(30.0 * k)), |ui| {
             ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new("Benvenuto").size(34.0).strong());
+                ui.label(egui::RichText::new("Benvenuto").size(34.0 * k).strong());
                 ui.add_space(12.0);
-                ui.label(egui::RichText::new("Accedi con l'account Google della scuola per leggere e salvare i tuoi PDF. I file vengono salvati nel tuo Google Drive.").size(19.0));
+                ui.label(egui::RichText::new("Accedi con l'account Google della scuola per leggere e salvare i tuoi PDF. I file vengono salvati nel tuo Google Drive.").size(19.0 * k));
                 ui.add_space(22.0);
-                let button = egui::Button::new(egui::RichText::new("Accedi con Google").size(24.0)).min_size(egui::vec2(card.width() - 60.0, 70.0));
+                let button = egui::Button::new(egui::RichText::new("Accedi con Google").size(24.0 * k)).min_size(egui::vec2(card.width() - 60.0 * k, 70.0 * k));
                 if ui.add(button).clicked() {
                     drive::sign_in();
                 }
                 ui.add_space(14.0);
-                ui.label(egui::RichText::new(format!("Si aprirà una finestra di Google: scegli l'account della scuola, nome@{}", drive::SCHOOL_DOMAIN)).size(15.0));
+                ui.label(egui::RichText::new(format!("Si aprirà una finestra di Google: scegli l'account della scuola, nome@{}", drive::SCHOOL_DOMAIN)).size(15.0 * k));
                 if !message.is_empty() {
                     ui.add_space(10.0);
-                    ui.label(egui::RichText::new(message).size(15.0).color(egui::Color32::LIGHT_RED));
+                    ui.label(egui::RichText::new(message).size(15.0 * k).color(egui::Color32::LIGHT_RED));
                 }
             });
         });

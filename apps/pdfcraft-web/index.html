@@ -7,11 +7,13 @@
     <link data-trunk rel="rust" data-wasm-opt="z" />
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: #f1f1f3; }
+      #pdfcraft_loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 20px system-ui, sans-serif; color: #666; }
       canvas { width: 100%; height: 100%; display: block; outline: none; }
       @media (prefers-color-scheme: dark) { html, body { background: #19191c; } }
     </style>
   </head>
   <body>
+    <div id="pdfcraft_loading">Caricamento di Lettore PDF&hellip;</div>
     <canvas id="pdfcraft"></canvas>
   </body>
 </html>

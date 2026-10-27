@@ -24,7 +24,7 @@ pub type OsEventsFn = Box<dyn FnMut() -> Vec<OsEvent>>;
 pub type HostSaveFn = Box<dyn Fn(&str, &[u8], bool) -> Result<(), String>>;
 
 /// Drawn every frame in a strip above the tabs (web: the school's Google Drive bar).
-pub type ExtraBarFn = Box<dyn FnMut(&mut egui::Ui)>;
+pub type ExtraBarFn = Box<dyn FnMut(&mut egui::Ui, &mut crate::PdfCraftApp)>;
 
 /// The About text of a school edition: what it is, who adapted it and where it comes from. When
 /// set, the About window shows it instead of the ArtCraft marks and community links.

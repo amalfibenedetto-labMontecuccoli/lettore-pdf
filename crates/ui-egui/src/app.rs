@@ -576,8 +576,10 @@ impl eframe::App for PdfCraftApp {
             window_controls::resize_edges(&ctx);
         }
         if let Some(mut bar) = self.extra_bar.take() {
-            egui::Panel::top("extra_bar").exact_size(32.0).show(ui, |ui| {
-                ui.horizontal_centered(|ui| bar(ui));
+            egui::Panel::top("extra_bar").exact_size(44.0).show(ui, |ui| {
+                egui::ScrollArea::horizontal().auto_shrink([false, true]).show(ui, |ui| {
+                    ui.horizontal_centered(|ui| bar(ui, self));
+                });
             });
             self.extra_bar = Some(bar);
         }

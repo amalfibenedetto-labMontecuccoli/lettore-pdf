@@ -61,6 +61,13 @@ fn wake() {
     });
 }
 
+/// Load Google's sign-in script in the background.
+pub fn preload() {
+    wasm_bindgen_futures::spawn_local(async {
+        let _ = load_identity_script().await;
+    });
+}
+
 pub fn disabled() -> bool {
     let search = web_sys::window().and_then(|w| w.location().search().ok()).unwrap_or_default();
     search.trim_start_matches('?').split('&').any(|p| p == "nodrive")
