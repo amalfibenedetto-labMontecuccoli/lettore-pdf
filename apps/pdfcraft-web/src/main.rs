@@ -4,6 +4,9 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 #[cfg(target_arch = "wasm32")]
+mod drive;
+
+#[cfg(target_arch = "wasm32")]
 fn main() {
     use eframe::wasm_bindgen::JsCast;
     use pdfcraft_ui_egui::PdfCraftApp;
@@ -75,6 +78,12 @@ fn main() {
                             &"PdfCraft: ?host=parent needs a framing page on the same origin; saves download instead".into(),
                         );
                     }
+                    // Outside a host page: sign in with Google, save to and open from the user's Drive.
+                    if query_param("host").as_deref() != Some("parent") && !drive::disabled() {
+                        drive::remember_context(&cc.egui_ctx);
+                        app.host_save = Some(Box::new(|name: &str, bytes: &[u8], _save_as: bool| drive::deliver(name, bytes)));
+                        app.extra_bar = Some(Box::new(drive_bar(app.inbox.clone())));
+                    }
                     Ok(Box::new(app))
                 }),
             )
@@ -88,6 +97,70 @@ fn main() {
             }
         }
     });
+}
+
+/// The strip above the tabs: sign in, open from Drive (saving goes to Drive by itself).
+#[cfg(target_arch = "wasm32")]
+fn drive_bar(inbox: pdfcraft_ui_egui::Inbox) -> impl FnMut(&mut egui::Ui) {
+    let mut files: Vec<drive::Entry> = Vec::new();
+    let mut listing_open = false;
+    let mut message = String::new();
+    move |ui: &mut egui::Ui| {
+        if let Some(note) = drive::take_notice() {
+            message = note;
+        }
+        if let Some(result) = drive::take_listing() {
+            match result {
+                Ok(list) => {
+                    files = list;
+                    listing_open = true;
+                }
+                Err(e) => message = format!("Non riesco a leggere il Drive: {e}"),
+            }
+        }
+        ui.label("Google Drive:");
+        match drive::account() {
+            Some(name) => {
+                ui.label(name);
+                if ui.button("Apri da Drive").clicked() {
+                    drive::list();
+                }
+                if ui.button("Esci").clicked() {
+                    drive::sign_out();
+                    listing_open = false;
+                }
+            }
+            None => {
+                if ui.button("Accedi con Google").clicked() {
+                    drive::sign_in();
+                }
+                if ui.button("Apri da Drive").clicked() {
+                    drive::list();
+                }
+            }
+        }
+        ui.label("Salva (Ctrl+S) salva su Drive");
+        if !message.is_empty() {
+            ui.add(egui::Label::new(message.as_str()).truncate());
+        }
+        let mut picked: Option<(String, String)> = None;
+        egui::Window::new("Apri da Google Drive").open(&mut listing_open).collapsible(false).show(ui.ctx(), |ui| {
+            if files.is_empty() {
+                ui.label("Nessun PDF nella cartella «PDF» del tuo Drive. Salva un file con Ctrl+S per trovarlo qui.");
+            }
+            egui::ScrollArea::vertical().max_height(360.0).show(ui, |ui| {
+                for (id, name, modified) in &files {
+                    if ui.button(format!("{name}   {modified}")).clicked() {
+                        picked = Some((id.clone(), name.clone()));
+                    }
+                }
+            });
+        });
+        if let Some((id, name)) = picked {
+            drive::open(&id, &name, inbox.clone());
+            listing_open = false;
+        }
+    }
 }
 
 #[cfg(target_arch = "wasm32")]

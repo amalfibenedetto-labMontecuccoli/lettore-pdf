@@ -23,5 +23,8 @@ pub type OsEventsFn = Box<dyn FnMut() -> Vec<OsEvent>>;
 /// for saves; without it the browser downloads the file.
 pub type HostSaveFn = Box<dyn Fn(&str, &[u8], bool) -> Result<(), String>>;
 
+/// Drawn every frame in a strip above the tabs (web: the school's Google Drive bar).
+pub type ExtraBarFn = Box<dyn FnMut(&mut egui::Ui)>;
+
 /// Told every frame whether any tab has unsaved work, so a host page can warn before leaving.
 pub type HostDirtyFn = Box<dyn FnMut(bool)>;

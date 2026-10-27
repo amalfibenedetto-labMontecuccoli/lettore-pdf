@@ -121,6 +121,7 @@ impl PdfCraftApp {
             os_events: None,
             host_save: None,
             host_dirty: None,
+            extra_bar: None,
             close_request: None,
             save_prompt_button: Default::default(),
             save_prompt_seen: false,
@@ -572,6 +573,12 @@ impl eframe::App for PdfCraftApp {
         self.sync_window_frame(&ctx);
         if self.draws_window_frame() {
             window_controls::resize_edges(&ctx);
+        }
+        if let Some(mut bar) = self.extra_bar.take() {
+            egui::Panel::top("extra_bar").exact_size(32.0).show(ui, |ui| {
+                ui.horizontal_centered(|ui| bar(ui));
+            });
+            self.extra_bar = Some(bar);
         }
         chrome::tab_strip(self, ui);
         chrome::mode_bar(self, ui);

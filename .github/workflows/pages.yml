@@ -1,4 +1,4 @@
-# Builds the browser version (apps/cadcraft-web) and publishes it on GitHub Pages.
+# Builds the browser version (apps/pdfcraft-web) and publishes it on GitHub Pages.
 # Self-contained: needs no secrets and no other repository.
 name: Pages
 
@@ -34,7 +34,7 @@ jobs:
           tool: trunk
 
       - name: Build the web app
-        working-directory: apps/cadcraft-web
+        working-directory: apps/pdfcraft-web
         run: trunk build --release
 
       # The Trunk config writes to dist/web at the repository root.
