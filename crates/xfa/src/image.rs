@@ -74,6 +74,9 @@ fn bmp_pixel_offset_repair(data: &[u8]) -> Option<u32> {
     let (bpp, masks, used, entry) = if info_size == 12 {
         // BITMAPCOREHEADER: 16-bit fields, no colour count, 3-byte table entries.
         (le16(24)?, 0, 0, 3)
+    } else if info_size < 40 {
+        // OS/2's 16-byte header ends before the colour count; leave it to the decoder.
+        return None;
     } else {
         // BI_BITFIELDS and BI_ALPHABITFIELDS put their masks after a 40-byte header; the larger
         // headers hold them inside.
