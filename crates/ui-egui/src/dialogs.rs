@@ -1342,6 +1342,24 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 match tab {
                     1 => crate::credits::contributors_ui(ui),
                     2 => crate::credits::models_ui(ui),
+                    _ if app.school_about.is_some() => {
+                        if let Some(about) = &app.school_about {
+                            ui.label(egui::RichText::new(about.name.as_str()).font(theme::semibold(20.0)));
+                            ui.label(crate::i18n::fmt(tl!("Version {v}"), &[("v", &pdfcraft_engine::build_info::version())]));
+                            ui.add_space(6.0);
+                            for line in &about.lines {
+                                ui.label(line.as_str());
+                            }
+                            if let Some((label, url)) = &about.link {
+                                ui.add_space(6.0);
+                                ui.hyperlink_to(label.as_str(), url.as_str());
+                            }
+                            if let Some(account) = about.account.as_ref().and_then(|f| f()) {
+                                ui.add_space(8.0);
+                                ui.label(egui::RichText::new(account).color(t.text_muted).small());
+                            }
+                        }
+                    }
                     _ => {
                         ui.horizontal(|ui| {
                             widgets::artcraft_mark(ui, 40.0);

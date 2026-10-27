@@ -122,6 +122,7 @@ impl PdfCraftApp {
             host_save: None,
             host_dirty: None,
             extra_bar: None,
+            school_about: None,
             close_request: None,
             save_prompt_button: Default::default(),
             save_prompt_seen: false,

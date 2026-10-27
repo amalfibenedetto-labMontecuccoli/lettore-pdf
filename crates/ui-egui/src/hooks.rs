@@ -26,5 +26,16 @@ pub type HostSaveFn = Box<dyn Fn(&str, &[u8], bool) -> Result<(), String>>;
 /// Drawn every frame in a strip above the tabs (web: the school's Google Drive bar).
 pub type ExtraBarFn = Box<dyn FnMut(&mut egui::Ui)>;
 
+/// The About text of a school edition: what it is, who adapted it and where it comes from. When
+/// set, the About window shows it instead of the ArtCraft marks and community links.
+pub struct SchoolAbout {
+    pub name: String,
+    pub lines: Vec<String>,
+    /// Label and address of a link to the original project.
+    pub link: Option<(String, String)>,
+    /// The signed-in account, asked each time the window is drawn.
+    pub account: Option<Box<dyn Fn() -> Option<String>>>,
+}
+
 /// Told every frame whether any tab has unsaved work, so a host page can warn before leaving.
 pub type HostDirtyFn = Box<dyn FnMut(bool)>;

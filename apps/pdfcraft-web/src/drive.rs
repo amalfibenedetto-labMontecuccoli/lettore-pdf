@@ -106,6 +106,13 @@ fn restore_session() {
     USER.with(|u| *u.borrow_mut() = kept.get("name").and_then(Value::as_str).map(str::to_string));
 }
 
+/// Whether nobody has signed in yet in this tab. After that, an expired access only makes the
+/// next save ask Google again, so open work is never covered up.
+pub fn needs_sign_in() -> bool {
+    restore_session();
+    USER.with(|u| u.borrow().is_none())
+}
+
 /// The signed-in user's name while their access is valid.
 pub fn account() -> Option<String> {
     restore_session();
@@ -310,13 +317,30 @@ async fn request(token: &str, method: &str, url: &str, content_type: Option<&str
     serde_json::from_str(&text).map_err(|e| format!("risposta di Drive non leggibile: {e}"))
 }
 
-async fn remember_user(token: &str) {
-    if USER.with(|u| u.borrow().is_some()) {
-        return;
+/// The school's email domain: the only accounts that may sign in.
+pub const SCHOOL_DOMAIN: &str = DOMAIN_HINT;
+
+/// Whether `email` is an address of the school (not of a lookalike domain).
+fn is_school_email(email: &str) -> bool {
+    let email = email.trim().to_lowercase();
+    email.strip_suffix(&format!("@{SCHOOL_DOMAIN}")).is_some_and(|local| !local.is_empty() && !local.contains('@'))
+}
+
+/// Ask Drive who the token belongs to and let only school accounts in: the account is forgotten
+/// and an error returned for any other (Google's `hd` hint only pre-selects, it doesn't enforce).
+async fn verify_account(token: &str) -> Result<(), String> {
+    let answer = request(token, "GET", "https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress)", None, None).await?;
+    let user = answer.get("user");
+    let email = user.and_then(|u| u.get("emailAddress")).and_then(Value::as_str).unwrap_or_default().to_string();
+    if !is_school_email(&email) {
+        TOKEN.with(|t| *t.borrow_mut() = None);
+        USER.with(|u| *u.borrow_mut() = None);
+        let shown = if email.is_empty() { "sconosciuto".to_string() } else { email };
+        return Err(format!("l'account {shown} non è della scuola: usa un account @{SCHOOL_DOMAIN}"));
     }
-    let answer = request(token, "GET", "https://www.googleapis.com/drive/v3/about?fields=user(displayName)", None, None).await;
-    let name = answer.ok().and_then(|a| a.get("user")?.get("displayName")?.as_str().map(str::to_string)).unwrap_or_else(|| "Google".to_string());
-    USER.with(|u| *u.borrow_mut() = Some(name));
+    let name = user.and_then(|u| u.get("displayName")).and_then(Value::as_str).unwrap_or("Google");
+    USER.with(|u| *u.borrow_mut() = Some(format!("{name} ({email})")));
+    Ok(())
 }
 
 async fn access_token() -> Result<String, String> {
@@ -339,7 +363,7 @@ async fn access_token() -> Result<String, String> {
     let value = field(&response, "access_token").and_then(|v| v.as_string()).ok_or("Google non ha dato il permesso di salvare")?;
     let seconds = field(&response, "expires_in").and_then(|v| v.as_f64().or_else(|| v.as_string().and_then(|s| s.parse().ok()))).unwrap_or(3000.0);
     TOKEN.with(|t| *t.borrow_mut() = Some(Token { value: value.clone(), expires_at_ms: js_sys::Date::now() + seconds * 1000.0 }));
-    remember_user(&value).await;
+    verify_account(&value).await?;
     store_session();
     Ok(value)
 }

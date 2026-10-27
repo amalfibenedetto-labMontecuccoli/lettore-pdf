@@ -83,6 +83,17 @@ fn main() {
                         drive::remember_context(&cc.egui_ctx);
                         app.host_save = Some(Box::new(|name: &str, bytes: &[u8], _save_as: bool| drive::deliver(name, bytes)));
                         app.extra_bar = Some(Box::new(drive_bar(app.inbox.clone())));
+                        app.school_about = Some(pdfcraft_ui_egui::SchoolAbout {
+                            name: "Lettore PDF".to_string(),
+                            lines: vec![
+                                "Versione didattica per la scuola, basata su PdfCraft.".to_string(),
+                                "A cura dei docenti della Scuola Secondaria di I grado R. Montecuccoli, Pavullo nel Frignano.".to_string(),
+                                "PdfCraft è software libero (licenza MIT oppure Apache-2.0) del team ArtCraft e dei suoi collaboratori. Questa versione è stata modificata: accesso con l'account Google della scuola, salvataggio e apertura su Google Drive.".to_string(),
+                                "Non è un prodotto del team ArtCraft né di Adobe Inc.".to_string(),
+                            ],
+                            link: Some(("Progetto originale: getartcraft.com/apps/pdfcraft".to_string(), "https://getartcraft.com/apps/pdfcraft".to_string())),
+                            account: Some(Box::new(|| drive::account().map(|a| format!("Accesso effettuato come {a}")))),
+                        });
                     }
                     Ok(Box::new(app))
                 }),
@@ -117,6 +128,9 @@ fn drive_bar(inbox: pdfcraft_ui_egui::Inbox) -> impl FnMut(&mut egui::Ui) {
                 }
                 Err(e) => message = format!("Non riesco a leggere il Drive: {e}"),
             }
+        }
+        if drive::needs_sign_in() {
+            sign_in_gate(ui.ctx(), &message);
         }
         ui.label("Google Drive:");
         match drive::account() {
@@ -161,6 +175,39 @@ fn drive_bar(inbox: pdfcraft_ui_egui::Inbox) -> impl FnMut(&mut egui::Ui) {
             listing_open = false;
         }
     }
+}
+
+/// Until someone signs in with a school account, a full-screen cover with one big button sits over
+/// the window and swallows every click, so no PDF is worked on without a place to save it.
+#[cfg(target_arch = "wasm32")]
+fn sign_in_gate(ctx: &egui::Context, message: &str) {
+    let screen = ctx.content_rect();
+    let visuals = ctx.global_style().visuals.clone();
+    egui::Area::new(egui::Id::new("sign_in_gate")).order(egui::Order::Foreground).fixed_pos(screen.min).show(ctx, |ui| {
+        ui.allocate_rect(screen, egui::Sense::click_and_drag());
+        ui.painter().rect_filled(screen, 0.0, egui::Color32::from_black_alpha(225));
+        let card = egui::Rect::from_center_size(screen.center(), egui::vec2((screen.width() - 40.0).clamp(280.0, 620.0), 400.0));
+        ui.painter().rect_filled(card, 14.0, visuals.panel_fill);
+        ui.painter().rect_stroke(card, 14.0, egui::Stroke::new(1.5, visuals.widgets.noninteractive.bg_stroke.color), egui::StrokeKind::Inside);
+        ui.scope_builder(egui::UiBuilder::new().max_rect(card.shrink(30.0)), |ui| {
+            ui.vertical_centered(|ui| {
+                ui.label(egui::RichText::new("Benvenuto").size(34.0).strong());
+                ui.add_space(12.0);
+                ui.label(egui::RichText::new("Accedi con l'account Google della scuola per leggere e salvare i tuoi PDF. I file vengono salvati nel tuo Google Drive.").size(19.0));
+                ui.add_space(22.0);
+                let button = egui::Button::new(egui::RichText::new("Accedi con Google").size(24.0)).min_size(egui::vec2(card.width() - 60.0, 70.0));
+                if ui.add(button).clicked() {
+                    drive::sign_in();
+                }
+                ui.add_space(14.0);
+                ui.label(egui::RichText::new(format!("Si aprirà una finestra di Google: scegli l'account della scuola, nome@{}", drive::SCHOOL_DOMAIN)).size(15.0));
+                if !message.is_empty() {
+                    ui.add_space(10.0);
+                    ui.label(egui::RichText::new(message).size(15.0).color(egui::Color32::LIGHT_RED));
+                }
+            });
+        });
+    });
 }
 
 #[cfg(target_arch = "wasm32")]
