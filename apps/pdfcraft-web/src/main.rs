@@ -191,7 +191,7 @@ fn drive_bar(inbox: pdfcraft_ui_egui::Inbox) -> impl FnMut(&mut egui::Ui, &mut p
 fn sign_in_gate(ctx: &egui::Context, message: &str) {
     let screen = ctx.content_rect();
     // A phone held upright is narrow: smaller type and a card that fits it.
-    let k = if screen.width() < 560.0 { 0.62 } else { 1.0 };
+    let k: f32 = if screen.width() < 560.0 { 0.62 } else { 1.0 };
     let visuals = ctx.global_style().visuals.clone();
     egui::Area::new(egui::Id::new("sign_in_gate")).order(egui::Order::Foreground).fixed_pos(screen.min).show(ctx, |ui| {
         ui.allocate_rect(screen, egui::Sense::click_and_drag());
