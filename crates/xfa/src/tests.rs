@@ -1794,6 +1794,39 @@ fn pictures_are_embedded_once_across_relayouts_and_bad_data_pictures_are_reporte
     assert!(find_image(&t.root.children).is_some_and(|n| n > 1_200_000));
 }
 
+/// #4937: LiveCycle wrote BMPs whose header gives the pixel data's offset as 0. Read literally,
+/// the pixels start at the file header, so the image is drawn shifted and wrapped around.
+#[test]
+fn a_bmp_whose_pixel_offset_points_into_its_headers_is_read_from_after_them() {
+    use crate::image::{bmp_with_pixel_offset, decode, size};
+    for palette in [false, true] {
+        let intact = tiny_bmp(palette);
+        assert!(matches!(bmp_with_pixel_offset(&intact), std::borrow::Cow::Borrowed(_)), "an intact file is not copied");
+        for bad in [0u32, 14, 53] {
+            let mut bmp = intact.clone();
+            bmp[10..14].copy_from_slice(&bad.to_le_bytes());
+            let d = decode(&bmp).unwrap();
+            assert_eq!(d.samples, vec![255, 0, 0, 0, 0, 255], "offset {bad}, palette: {palette}");
+            assert_eq!(size(&bmp), Some((2, 1)));
+            assert_eq!(bmp_with_pixel_offset(&bmp).as_ref(), &intact[..], "offset {bad}, palette: {palette}");
+        }
+    }
+    // Too short to hold the pixels after the headers: left alone, not grown.
+    let mut cut = tiny_bmp(true);
+    cut[10..14].copy_from_slice(&0u32.to_le_bytes());
+    cut.truncate(60);
+    assert_eq!(bmp_with_pixel_offset(&cut).as_ref(), &cut[..]);
+    // A truncated header, and bytes that are not a BMP: left alone.
+    assert_eq!(bmp_with_pixel_offset(b"BM  ").as_ref(), b"BM  ");
+    assert_eq!(bmp_with_pixel_offset(TINY_GIF).as_ref(), TINY_GIF);
+    // BI_BITFIELDS in a 40-byte header: three masks follow the header.
+    let mut fields = tiny_bmp(false);
+    fields[30..34].copy_from_slice(&3u32.to_le_bytes());
+    fields[10..14].copy_from_slice(&0u32.to_le_bytes());
+    fields.splice(54..54, [0u8; 12]);
+    assert_eq!(bmp_with_pixel_offset(&fields).get(10..14), Some(&66u32.to_le_bytes()[..]));
+}
+
 /// Designer forms often carry BMP and TIFF pictures, declared as `image/bmp` and `image/tif`
 /// (the Government of Canada's IMM 5257 and IMM 5710 have both). They were left out.
 #[test]
