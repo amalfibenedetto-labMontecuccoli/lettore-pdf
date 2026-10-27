@@ -7,6 +7,7 @@ mod luminosity_group_space;
 mod named_form_properties;
 mod search;
 mod separation_all;
+mod stroke_degenerate_cubic;
 mod substitute_widths;
 mod text_matrix_q;
 mod tiling_cell_placement;
