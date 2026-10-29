@@ -7138,8 +7138,9 @@ fn a_malformed_token_does_not_end_the_content_stream() {
         // A `re` with three operands: the typed iterator used to abort on a path operator it
         // could not dispatch, which is what #3568 reports.
         "20 10 10 re",
-        // More operands than the limit (ISO 32000-2 Annex C gives 10): the instruction is
-        // dropped, not the stream.
+        // Eleven operands: under the 256 the stack holds, so this one runs on its own last
+        // operand. Past the limit is covered by
+        // `an_operator_past_the_operand_limit_reads_its_own_operands` below.
         "0 0 0 0 0 0 0 0 0 0 0 g",
         // A stray delimiter: the lexer could not read an operator and jumped to the end.
         ")",
@@ -7157,6 +7158,35 @@ fn a_malformed_token_does_not_end_the_content_stream() {
         assert!(text.contains("BEFORE"), "{token}: {text:?}");
         assert!(text.contains("AFTER"), "{token}: the rest of the page was lost: {text:?}");
         assert!(text.find("BEFORE") < text.find("AFTER"), "{token}: the page is read in order: {text:?}");
+    }
+}
+
+/// An operator preceded by more operands than the stack holds is applied to its own operands,
+/// which are the ones nearest it, rather than to whichever of the strays survived. The parser
+/// had a branch meant to drop such an instruction whole, dead because `Stack::push` always
+/// reported success (noted in review of #3636); reviving it loses legitimate content, which
+/// `an_operator_with_hundreds_of_operands_does_not_end_the_content` measures, so the dead branch
+/// is gone and this pins what the ring buffer does instead.
+#[test]
+fn an_operator_past_the_operand_limit_reads_its_own_operands() {
+    // The strays are `1` and the operator's own operand is `0`, so the two answers differ: white
+    // if the operator read a stray, black if it read its own.
+    let page = |strays: usize| {
+        let stream = format!("{}0 g 0 0 20 20 re f", "1 ".repeat(strays));
+        let pdf = format!(
+            "%PDF-1.7\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 20 20] /Contents 4 0 R >> endobj\n4 0 obj << /Length {} >> stream\n{stream}\nendstream endobj\ntrailer << /Root 1 0 R >>\n%%EOF",
+            stream.len()
+        );
+        let mut r = PageRenderer::new(Arc::new(pdf.into_bytes()), RenderConfig::default());
+        let p = r.render(RenderRequest { page: 0, kind: RequestKind::Pixels, scale: 1.0, ..Default::default() });
+        assert!(p.error.is_none(), "{strays} strays: {:?}", p.error);
+        p.rgba.as_chunks::<4>().0.to_vec()
+    };
+    let all_black = |pixels: &[[u8; 4]]| pixels.iter().all(|p| *p == [0, 0, 0, 255]);
+
+    // None, a few, the limit, and past it: the fill is the black the `g` asked for every time.
+    for strays in [0, 5, 255, 256, 257, 600] {
+        assert!(all_black(&page(strays)), "{strays} stray operands: the `g` reads its own operand");
     }
 }
 
