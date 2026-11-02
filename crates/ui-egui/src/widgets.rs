@@ -555,24 +555,15 @@ pub fn progress_notice(app: &PdfCraftApp, ctx: &egui::Context) -> bool {
     cancel
 }
 
-/// The ArtCraft wordmark (Storyteller's brand, docs/brand/; not open source), sized to `height`.
-pub fn artcraft_logo(ui: &mut egui::Ui, height: f32) -> Response {
-    let dark = ui.visuals().dark_mode;
-    let (uri, bytes): (&str, &'static [u8]) = if dark {
-        ("bytes://artcraft-logo-white.svg", include_bytes!("../../../docs/brand/artcraft-logo-white.svg"))
-    } else {
-        ("bytes://artcraft-logo.svg", include_bytes!("../../../docs/brand/artcraft-logo.svg"))
-    };
-    ui.add(egui::Image::from_bytes(uri, bytes).max_height(height).alt_text("ArtCraft"))
+/// The ArtCraft wordmark. This school edition is a modified version, so it does not carry the ArtCraft
+/// marks (docs/brand/LICENSE-brand.txt): it draws nothing and takes no room.
+pub fn artcraft_logo(ui: &mut egui::Ui, _height: f32) -> Response {
+    ui.allocate_response(vec2(0.0, 0.0), egui::Sense::hover())
 }
 
-/// The ArtCraft mark (brand blue, works on light and dark), `size` points square.
-pub fn artcraft_mark(ui: &mut egui::Ui, size: f32) -> Response {
-    ui.add(
-        egui::Image::from_bytes("bytes://artcraft-mark.svg", include_bytes!("../../../docs/brand/artcraft-mark.svg"))
-            .fit_to_exact_size(vec2(size, size))
-            .alt_text("ArtCraft"),
-    )
+/// The ArtCraft mark: not carried by this edition either (see `artcraft_logo`).
+pub fn artcraft_mark(ui: &mut egui::Ui, _size: f32) -> Response {
+    ui.allocate_response(vec2(0.0, 0.0), egui::Sense::hover())
 }
 
 /// Buttons for every community link (`pdfcraft_engine::links`), Discord first and prominent.
