@@ -112,7 +112,16 @@ impl PdfCraftApp {
         }
     }
 
+    /// Whether a command opens the ArtCraft community, website or update page. The school edition
+    /// (`school_about` set) offers none of them: they lead out of the school's app.
+    pub(crate) fn is_community_link(&self, id: &str) -> bool {
+        self.school_about.is_some() && matches!(id, "help.discord" | "help.app_page" | "help.github" | "help.website" | "help.check_updates")
+    }
+
     fn execute_unguarded(&mut self, id: &str) -> bool {
+        if self.is_community_link(id) {
+            return true;
+        }
         let Some(spec) = commands::command(id) else { return false };
         if !self.command_enabled(spec) {
             let why = match spec.needs {
