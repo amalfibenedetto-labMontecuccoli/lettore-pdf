@@ -62,7 +62,7 @@ const fn menu_item(label: &'static str, icon: &'static str, actions: &'static [&
     ToolItem { label, icon, command, availability: Ready, actions }
 }
 
-use Availability::{Planned, Provider, Ready};
+use Availability::{Planned, Ready};
 
 const RED: [u8; 3] = [0xE0, 0x3E, 0x3E];
 const PURPLE: [u8; 3] = [0x8E, 0x4E, 0xE6];
@@ -528,22 +528,6 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
             ],
         }],
     },
-    ToolGroup {
-        id: "ai",
-        label: "AI assistant",
-        icon: "sparkles",
-        hue: PINK,
-        badge: Some("Optional"),
-        availability: Provider,
-        sections: &[ToolSection {
-            title: "Bring your own model (off by default)",
-            items: &[
-                item("Summarize", "sparkles", "ai.summary", Provider),
-                item("Ask about this document", "message-circle-reply", "ai.ask", Provider),
-                item("Translate", "languages", "ai.translate", Provider),
-            ],
-        }],
-    },
 ];
 
 pub fn group(id: &str) -> Option<&'static ToolGroup> {
@@ -564,7 +548,7 @@ pub static TOOL_CATEGORIES: &[ToolCategory] = &[
     ToolCategory { label: "Review & Compare", groups: &["comment", "stamp", "compare", "measure"] },
     ToolCategory { label: "Forms & Signatures", groups: &["fill_sign", "form", "certificate"] },
     ToolCategory { label: "Protect & Standardize", groups: &["protect", "redact", "accessibility", "standards", "print_production"] },
-    ToolCategory { label: "Customize & Automate", groups: &["actions", "javascript", "search_index", "ai"] },
+    ToolCategory { label: "Customize & Automate", groups: &["actions", "javascript", "search_index"] },
 ];
 
 #[cfg(test)]
