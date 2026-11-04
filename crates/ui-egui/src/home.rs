@@ -218,7 +218,7 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
             ui.add_space(20.0);
             widgets::section_title(ui, tl!("Privacy"));
             ui.label(
-                egui::RichText::new(tl!("PdfCraft works offline. No telemetry, no account, and no cloud processing unless you add a provider."))
+                egui::RichText::new(tl!("Lettore PDF processes documents in your browser, with no telemetry or tracking. You sign in with your school Google account, and the files you save go only to your own Google Drive."))
                     .color(t.text_muted),
             );
         });
