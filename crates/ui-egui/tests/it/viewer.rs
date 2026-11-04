@@ -964,7 +964,7 @@ fn tab_and_window_show_the_document_title_when_asked() {
     use pdfcraft_engine::Edit;
     let mut h = harness();
     h.run_steps(2);
-    assert_eq!(h.state().window_title, "b.pdf — PdfCraft");
+    assert_eq!(h.state().window_title, "b.pdf — Lettore PDF");
     {
         let s = h.state_mut();
         let id = s.views[s.active.unwrap()].id;
@@ -975,7 +975,7 @@ fn tab_and_window_show_the_document_title_when_asked() {
     }
     h.run_steps(2);
     // The edits are unsaved, so the title says so (#3640).
-    assert_eq!(h.state().window_title, "Quarterly report • — PdfCraft");
+    assert_eq!(h.state().window_title, "Quarterly report • — Lettore PDF");
     h.get_by_label_contains("Quarterly report");
 }
 
@@ -984,14 +984,14 @@ fn the_window_title_marks_unsaved_changes_until_saved() {
     use pdfcraft_engine::Edit;
     let mut h = harness();
     h.run_steps(2);
-    assert_eq!(h.state().window_title, "b.pdf — PdfCraft");
+    assert_eq!(h.state().window_title, "b.pdf — Lettore PDF");
     {
         let s = h.state_mut();
         let id = s.views[s.active.unwrap()].id;
         s.session.apply(id, Edit::SetInfo { key: "Subject".into(), value: "Budget".into() }).unwrap();
     }
     h.run_steps(2);
-    assert_eq!(h.state().window_title, "b.pdf • — PdfCraft", "unsaved changes (#3640)");
+    assert_eq!(h.state().window_title, "b.pdf • — Lettore PDF", "unsaved changes (#3640)");
     // Saved under its own name, so the title changes only by the mark.
     let dir = std::env::temp_dir().join(format!("pdfcraft-title-dirty-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -1001,7 +1001,7 @@ fn the_window_title_marks_unsaved_changes_until_saved() {
     let _ = std::fs::remove_dir_all(&dir);
     let s = h.state();
     assert!(!s.session.get(s.views[s.active.unwrap()].id).unwrap().dirty);
-    assert_eq!(s.window_title, "b.pdf — PdfCraft", "saved");
+    assert_eq!(s.window_title, "b.pdf — Lettore PDF", "saved");
 }
 
 #[test]
@@ -1019,7 +1019,7 @@ fn a_placeholder_title_leaves_the_file_name_on_the_tab_and_window() {
         s.session.apply(id, Edit::SetInitialView(Box::new(v))).unwrap();
     }
     h.run_steps(2);
-    assert_eq!(h.state().window_title, "b.pdf • — PdfCraft");
+    assert_eq!(h.state().window_title, "b.pdf • — Lettore PDF");
     assert!(h.query_by_label_contains("about:blank").is_none());
 }
 
@@ -2280,7 +2280,7 @@ fn the_accessible_window_has_the_window_title_as_its_name() {
     let mut h = harness();
     h.run_steps(2);
     let name = |h: &Harness<'static, PdfCraftApp>| h.root().accesskit_node().label().map(|l| l.to_string());
-    assert_eq!(name(&h).as_deref(), Some("b.pdf — PdfCraft"));
+    assert_eq!(name(&h).as_deref(), Some("b.pdf — Lettore PDF"));
     {
         use pdfcraft_engine::Edit;
         let s = h.state_mut();
@@ -2292,6 +2292,6 @@ fn the_accessible_window_has_the_window_title_as_its_name() {
     }
     h.run_steps(2);
     // Unsaved, so it carries the window title's mark too (#3640).
-    assert_eq!(name(&h).as_deref(), Some("Quarterly report • — PdfCraft"));
+    assert_eq!(name(&h).as_deref(), Some("Quarterly report • — Lettore PDF"));
     assert_eq!(name(&h), Some(h.state().window_title.clone()));
 }
